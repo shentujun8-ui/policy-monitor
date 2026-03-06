@@ -1,39 +1,43 @@
-name: 每日政策监控
+name: 政策监控日报
 
 on:
   schedule:
-    # 每天北京时间9点运行（UTC时间1点）
-    - cron: '0 1 * * *'
-  workflow_dispatch: # 允许手动触发（测试用）
+    - cron: '0 9 * * *'  # 每天上午9点运行（UTC时间，相当于北京时间17点）
+  workflow_dispatch:      # 允许手动点击运行
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      
+    
+    # ==================== 关键：设置环境变量（解决 401 错误）====================
+    env:
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}  # 从 GitHub Secrets 读取
+    
     steps:
-    - name: 检出代码
-      uses: actions/checkout@v4
+      # 检出代码
+      - name: 检出代码
+        uses: actions/checkout@v3
       
-    - name: 设置Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        
-    - name: 安装依赖
-      run: |
-        pip install requests openai python-dotenv
-        
-    - name: 运行监控脚本
-      env:
-        KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
-      run: python main.py
+      # 设置 Python
+      - name: 设置 Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
       
-    - name: 提交结果到仓库
-      run: |
-        git config --global user.name 'GitHub Actions'
-        git config --global user.email 'actions@github.com'
-        git add reports/
-        git commit -m "每日政策报告 $(date +'%Y-%m-%d')" || echo "No changes"
-        git push
+      # 安装依赖
+      - name: 安装依赖
+        run: |
+          pip install openai
+          # 如果有 requirements.txt，改成：pip install -r requirements.txt
+      
+      # 运行脚本
+      - name: 生成报告
+        run: python main.py
+      
+      # 上传生成的报告作为附件（方便下载查看）
+      - name: 上传报告
+        if: always()  # 即使失败也上传错误日志
+        uses: actions/upload-artifact@v3
+        with:
+          name: policy-reports
+          path: reports/*.md
