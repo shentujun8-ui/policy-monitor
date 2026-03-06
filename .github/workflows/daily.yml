@@ -2,42 +2,36 @@ name: 政策监控日报
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # 每天上午9点运行（UTC时间，相当于北京时间17点）
-  workflow_dispatch:      # 允许手动点击运行
+    - cron: '0 9 * * *'  # 每天上午9点运行
+  workflow_dispatch:      # 允许手动运行
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
     
-    # ==================== 关键：设置环境变量（解决 401 错误）====================
     env:
-      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}  # 从 GitHub Secrets 读取
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
     
     steps:
-      # 检出代码
       - name: 检出代码
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
-      # 设置 Python
       - name: 设置 Python 3.10
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       
-      # 安装依赖
       - name: 安装依赖
         run: |
           pip install openai
-          # 如果有 requirements.txt，改成：pip install -r requirements.txt
       
-      # 运行脚本
       - name: 生成报告
         run: python main.py
       
-      # 上传生成的报告作为附件（方便下载查看）
       - name: 上传报告
-        if: always()  # 即使失败也上传错误日志
-        uses: actions/upload-artifact@v3
+        if: always()
+        uses: actions/upload-artifact@v4  # ← 关键：v3 改成 v4
         with:
-          name: policy-reports
+          name: policy-reports-${{ github.run_id }}
           path: reports/*.md
+          retention-days: 30
